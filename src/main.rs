@@ -1,5 +1,5 @@
 use crate::message::{Message, MessageBody, MessageBodyMetadata, MessageHeader};
-use crate::message_handling::{gen_msg_id, EchoHandler, MessageHandler};
+use crate::message_handling::{gen_msg_id, EchoHandler, MessageHandler, UniqueIdHandler};
 use crate::message_streams::{MessageInStream, MessageOutWriter};
 use color_eyre::Result;
 use std::io;
@@ -24,6 +24,7 @@ fn main() -> Result<()> {
     let output = MessageOutWriter::new_from_stdout();
 
     let mut echo_handler = None;
+    let mut unique_id_handler = None;
 
     tracing::info!("Starting message handling");
     for maybe_msg in input {
@@ -33,6 +34,7 @@ fn main() -> Result<()> {
                 // init
                 MessageBody::Init { content, metadata } => {
                     echo_handler = Some(EchoHandler::new(content.clone()));
+                    unique_id_handler = Some(UniqueIdHandler::new(content.clone()));
                     output.write(Message {
                         header: MessageHeader {
                             src: content.node_id.clone(),
@@ -57,12 +59,25 @@ fn main() -> Result<()> {
                     output.write(response)?;
                 }
 
+                // unique id workload
+                MessageBody::UniqueIdRequest { metadata } => {
+                    let response =
+                        unique_id_handler
+                            .clone()
+                            .unwrap()
+                            .handle(&msg.header, &metadata, &());
+                    output.write(response)?;
+                }
+
                 // handle messages which we should never receive
                 MessageBody::EchoResponse { .. } => {
                     panic!("Maelstrom should never send an echo response to us")
                 }
                 MessageBody::InitResponse { .. } => {
                     panic!("Maelstrom should never send an init response to us")
+                }
+                MessageBody::UniqueIdResponse { .. } => {
+                    panic!("Maelstrom should never send a unique id response to us")
                 }
             },
         }

@@ -1,4 +1,4 @@
-use crate::message::{Message, MessageBodyMetadata, MessageHeader};
+use crate::message::{MessageBodyMetadata, MessageHeader};
 
 pub trait MessageHandler<M> {
     type Response;

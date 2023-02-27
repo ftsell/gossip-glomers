@@ -2,9 +2,7 @@ use crate::message::Message;
 use color_eyre::eyre::WrapErr;
 use color_eyre::Result;
 use std::io;
-use std::io::{BufRead, BufReader, Cursor, Lines, Read, Write};
-use std::pin::Pin;
-use std::task::{Context, Poll};
+use std::io::{BufRead, Lines, Write};
 
 #[derive(Debug)]
 pub struct MessageInStream<R: BufRead> {

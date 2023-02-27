@@ -4,7 +4,7 @@ use crate::message::{
 use crate::message_handling::gen_msg_id;
 use crate::message_handling::handler::MessageHandler;
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct EchoHandler {
     init_data: InitMsg,
 }

@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 type NodeId = String;
 
@@ -54,6 +55,17 @@ pub enum MessageBody {
         metadata: MessageBodyMetadata,
         #[serde(flatten)]
         content: EchoResponse,
+    },
+    #[serde(rename = "generate")]
+    UniqueIdRequest {
+        #[serde(flatten)]
+        metadata: MessageBodyMetadata,
+    },
+    #[serde(rename = "generate_ok")]
+    UniqueIdResponse {
+        #[serde(flatten)]
+        metadata: MessageBodyMetadata,
+        id: Uuid,
     },
 }
 
