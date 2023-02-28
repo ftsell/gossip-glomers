@@ -1,13 +1,12 @@
-use crate::message::{Message, MessageBody, MessageBodyMetadata, MessageHeader};
-use crate::message_handling::{gen_msg_id, EchoHandler, MessageHandler, UniqueIdHandler};
-use crate::message_streams::{MessageInStream, MessageOutWriter};
+use crate::maelstrom::{MessageReader, MessageWriter};
+use color_eyre::eyre::eyre;
 use color_eyre::Result;
 use std::io;
 use tracing::Level;
 
-mod message;
-mod message_handling;
-mod message_streams;
+mod echo_workload;
+mod maelstrom;
+mod unique_id_workload;
 
 const LOG_LEVEL: Level = Level::INFO;
 
@@ -20,68 +19,20 @@ fn main() -> Result<()> {
         .with_writer(io::stderr)
         .init();
 
-    let input = MessageInStream::new_from_stdin();
-    let output = MessageOutWriter::new_from_stdout();
+    let mut msg_reader = MessageReader::new();
+    let mut msg_writer = MessageWriter::new();
+    let init_data = maelstrom::init(&mut msg_reader, &mut msg_writer)?;
 
-    let mut echo_handler = None;
-    let mut unique_id_handler = None;
-
-    tracing::info!("Starting message handling");
-    for maybe_msg in input {
-        match maybe_msg {
-            Err(e) => tracing::error!("Could not handle input: {e}"),
-            Ok(msg) => match msg.body {
-                // init
-                MessageBody::Init { content, metadata } => {
-                    echo_handler = Some(EchoHandler::new(content.clone()));
-                    unique_id_handler = Some(UniqueIdHandler::new(content.clone()));
-                    output.write(Message {
-                        header: MessageHeader {
-                            src: content.node_id.clone(),
-                            dest: msg.header.src.clone(),
-                        },
-                        body: MessageBody::InitResponse {
-                            metadata: MessageBodyMetadata {
-                                msg_id: Some(gen_msg_id()),
-                                in_reply_to: metadata.msg_id,
-                            },
-                        },
-                    })?;
-                }
-
-                // echo workload
-                MessageBody::EchoRequest { metadata, content } => {
-                    let response =
-                        echo_handler
-                            .clone()
-                            .unwrap()
-                            .handle(&msg.header, &metadata, &content);
-                    output.write(response)?;
-                }
-
-                // unique id workload
-                MessageBody::UniqueIdRequest { metadata } => {
-                    let response =
-                        unique_id_handler
-                            .clone()
-                            .unwrap()
-                            .handle(&msg.header, &metadata, &());
-                    output.write(response)?;
-                }
-
-                // handle messages which we should never receive
-                MessageBody::EchoResponse { .. } => {
-                    panic!("Maelstrom should never send an echo response to us")
-                }
-                MessageBody::InitResponse { .. } => {
-                    panic!("Maelstrom should never send an init response to us")
-                }
-                MessageBody::UniqueIdResponse { .. } => {
-                    panic!("Maelstrom should never send a unique id response to us")
-                }
-            },
-        }
+    loop {
+        let msg = msg_reader.read_anon()?;
+        match msg.body.msg_type.as_str() {
+            echo_workload::REQ_MSG_TYPE => {
+                echo_workload::handle_echo(&mut msg_writer, &init_data, msg.downparse()?)
+            }
+            unique_id_workload::REQ_MSG_TYPE => {
+                unique_id_workload::handle_generate(&mut msg_writer, &init_data, msg)
+            }
+            _ => Err(eyre!("Could not handle received message {msg:?}")),
+        }?;
     }
-
-    Ok(())
 }
