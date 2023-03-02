@@ -3,6 +3,7 @@ use color_eyre::eyre::{Result, WrapErr};
 use serde::Deserialize;
 use std::io::{stdin, BufRead, StdinLock};
 
+#[derive(Debug)]
 pub struct MessageReader<'a> {
     stdin: StdinLock<'a>,
 }

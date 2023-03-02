@@ -3,6 +3,7 @@ use color_eyre::eyre::{Result, WrapErr};
 use serde::Serialize;
 use std::io::{stdout, StdoutLock, Write};
 
+#[derive(Debug)]
 pub struct MessageWriter<'a> {
     stdout: StdoutLock<'a>,
 }
